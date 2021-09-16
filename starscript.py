@@ -8,7 +8,7 @@ import numpy as np
 import pandas
 import dask.dataframe as dd
 from ztfimg import aperture
-
+from ztfquery import fields
 
 STARFLAT_PATH = "/sps/ztf/data/storage/starflat/"
 DATAFILE_PATH = os.path.join(STARFLAT_PATH, "datafiles")
@@ -81,15 +81,14 @@ class Starflat():
             rcids = np.atleast_1d(rcids)
 
         for rcid in rcids:
-            files.append(self.get_rcid_datafile(rcid, filter = filter, year = year, load = False))
-
-        for file in files[:2]:
+            file = self.get_rcid_datafile(rcid, filter = filter, year = year, load = False)
             ap = aperture.AperturePhotometry.from_datafile(file)
             cat = ap.build_apcatalog(radius, calibrators=['gaia', 'ps1'], extracat=['psfcat'], isolation = sep_limit)
+            ccdid = fields.rcid_to_ccdid_qid(rcid)[0]
+            qid = fields.rcid_to_ccdid_qid(rcid)[1]
             file_out = os.path.join(dir_path, f'{year}_{filter}_c{ccdid:02}_o_q{qid}_concat.parquet')
-            if store:
-                
-
             cats.append(cat)
+            if store:
+                print(file_out)
 
         return cats
