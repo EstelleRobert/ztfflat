@@ -86,9 +86,6 @@ class Starflat():
             ap = aperture.AperturePhotometry.from_datafile(file)
             cat = ap.build_apcatalog(radius, calibrators=['gaia', 'ps1'], extracat=['psfcat'], isolation = sep_limit)
             file_out = os.path.join(dir_path, f'{year}_{filter}_c{ccdid:02}_o_q{qid}_concat.parquet')
-            if store:
-                
-
             cats.append(cat)
 
         return cats
