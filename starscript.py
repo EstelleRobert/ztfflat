@@ -89,6 +89,6 @@ class Starflat():
             file_out = os.path.join(dir_path, f'{year}_{filter}_c{ccdid:02}_o_q{qid}_concat.parquet')
             cats.append(cat)
             if store:
-                print(file_out)
+                cat.to_parquet(file_out)
 
         return cats
