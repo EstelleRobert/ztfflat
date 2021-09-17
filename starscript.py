@@ -68,13 +68,43 @@ class Starflat():
         
 
     def build_concat_cat(self, radius, rcids = None, filter = 'zi', year = 2019,  sep_limit = 20, store = True):
-        """  
+        """ For each rcid, build a concat dataframe for all fits files 
+        
+        Parameters
+        ----------
 
+        radius: [list of float]
+        aperture radius (same for all images)
+
+        rcids: [int]
+        rcids values of interest
+
+        filter: [str]
+        -zg
+        -zr
+        -zi
+
+        year: [int]
+        -2018
+        -2019
+
+        sep_limit: [int] -optional-
+        no neighbors in the sep_limit radius around the considered star (arcsec)
+
+        store: [bool]
+        if store: build pathname to store concat dataframe
+
+        Returns
+        -------
+        list of concat pandas dataframes (delayed)
+        if store: list of all concat dataframes (delayed), list of pathnames to store them
+        
         """
         
         dir_path = os.path.join(os.getenv('ZTFDATA'), 'storage/starflat/concat_df')
         files = []   
         cats = []
+        file_out_list = []
         if rcids is None:
             rcids = np.arange(0,64)
         else:
@@ -89,6 +119,8 @@ class Starflat():
             file_out = os.path.join(dir_path, f'{year}_{filter}_c{ccdid:02}_o_q{qid}_concat.parquet')
             cats.append(cat)
             if store:
-                cat.to_parquet(file_out)
-
-        return cats
+                file_out_list.append(file_out)
+        if store:
+            return cats, file_out_list
+        else:
+            return cats
