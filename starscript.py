@@ -97,11 +97,13 @@ class Starflat():
         Returns
         -------
         list of concat pandas dataframes (delayed)
-        if store: list of all concat dataframes (delayed), list of pathnames to store them
-        
+        if store: list of all concat dataframes (delayed), list of pathnames to store them        
         """
         
         dir_path = os.path.join(os.getenv('ZTFDATA'), 'storage/starflat/concat_df')
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+
         files = []   
         cats = []
         file_out_list = []
@@ -120,6 +122,7 @@ class Starflat():
             cats.append(cat)
             if store:
                 file_out_list.append(file_out)
+
         if store:
             return cats, file_out_list
         else:
