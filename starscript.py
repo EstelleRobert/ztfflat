@@ -55,8 +55,12 @@ class Starflat():
             y = '20190331'
         else:
             raise ValueError('no such year')
-
-        rcfile = os.path.join(DATAFILE_PATH, f"starflat_{y}_{filter}_rcid{rcid}.h5")
+        
+        if ((year == 2018) & (filter in['zr','zi'])):
+            rcfile = []
+            raise ValueError('No such filter+year combinaison')
+        else:
+            rcfile = os.path.join(DATAFILE_PATH, f"starflat_{y}_{filter}_rcid{rcid}.h5")
 
         if load:
             return pandas.read_hdf(rcfile)
