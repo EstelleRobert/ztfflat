@@ -50,16 +50,21 @@ class Starflat():
         -------
         file.parquet
         """
+        
+        if ((rcid > 63) or (rcid<0)):
+            raise ValueError('No such rcid')
 
         if year == 2018:
             y = '20180221'
         elif year == 2019:
             y = '20190331'
         else:
-            raise ValueError('no such year')
+            raise ValueError('No such year')
+
+        if filter not in ['zi','zr','zg']:
+            raise ValueError('No such filter')
         
         if ((year == 2018) & (filter in['zr','zi'])):
-            rcfile = []
             raise ValueError('No such filter+year combinaison')
         else:
             rcfile = os.path.join(DATAFILE_PATH, f"starflat_{y}_{filter}_rcid{rcid}.h5")
@@ -73,7 +78,7 @@ class Starflat():
 
         
 
-    def build_concat_cat(self, radius, rcids = None, filter = 'zi', year = 2019,  sep_limit = 20, store = True):
+    def build_concat_cat(self, client,  radius,  rcids = None, filter = 'zi', year = 2019,  sep_limit = 20, store = True):
         """ For each rcid, build a concat dataframe for all fits files 
         
         Parameters
@@ -126,11 +131,16 @@ class Starflat():
             qid = fields.rcid_to_ccdid_qid(rcid)[1]
             file_out = os.path.join(dir_path, f'{year}_{filter}_c{ccdid:02}_o_q{qid}_concat.parquet')
             cats.append(cat)
+
             if store:
                 file_out_list.append(file_out)
 
         if store:
-            return cats, file_out_list
+            cats_values = client.gather(client.compute(cats))
+            for cat, file_out in zip(cats_values, file_out_list):
+                cat.to_parquet(file_out)
+            return cats_values
+#            return cats, file_out_list
         else:
             return cats
 
@@ -158,10 +168,10 @@ class Starflat():
         
         dfs = []
         if ((year != 2018) and (year != 2019)):
-            raise ValueError('no such year')
+            raise ValueError('No such year')
         
         if filter not in ['zi','zr','zg']:
-            raise ValueError('no such filter')
+            raise ValueError('No  such filter')
 
         if ((year == 2018) & (filter in['zr','zi'])):
             raise ValueError('No such filter+year combinaison')
@@ -193,7 +203,7 @@ class Starflat():
 
         df_concat = pandas.read_parquet(df)
         ap = analysis.ApertureCatalog.read_parquet(df)
-        dataf = apOB.create_col_para(variable = 'both')
+        dataf = ap.create_col_para(variable = 'both')
         info = df.split('_')
         ccdid = int(info[3].replace('c','')) 
         qid = int( info[5].replace('q', ''))
@@ -213,24 +223,25 @@ class Starflat():
         dic['psfcat'] = df_concat['flux']
         dic['psfcat_e'] = df_concat['sigflux']
         dic['psfcat_ratio'] = dataf['psfcat_ratio']
-        dic['f_10_raOBtio'] = dataf['f_10_ratio']
+        dic['f_10_ratio'] = dataf['f_10_ratio']
     
         dataframe = pandas.DataFrame(dic, index = df_concat.index)
         dataframe[keys] = df_concat[keys].values
         # In good ordrer:
         dataframe_final = dataframe[['Source', 'ccdid', 'qid',
                                      'x','y', 'u', 'v', 'x_ps1', 'y_ps1', 'u_ps1', 'v_ps1', 'ra', 'dec','ra_ps1', 'dec_ps1',
-                                     'f_10', 'f_10_e', 'f_10_ratio','f_10_f', 'psfcat', 'psfcat_e', 'psfcat_ratio', 
+                                     'f_10', 'f_10_e', 'f_10_ratio','f_10_f', 'psfcat', 'psfcat_e', 'psfcat_ratio',
                                      'gmag', 'gmag_ps1','e_gmag', 'e_gmag_ps1',
                                      'rpmag','rmag_ps1', 'e_rpmag', 'e_rmag_ps1',
                                      'bpmag', 'imag_ps1','e_bpmag','e_imag_ps1',
                                      'zmag_ps1', 'e_zmag_ps1',
                                      'colormag', 'isolated']]
-    
+
+
         return dataframe_final
     
 
-    def build_dataframe_fit(self, client, year = 2019, filter = 'zi', store = True):
+    def build_dataframe_fit(self, client, year = 2019, filter = 'zi', store = True, dir_path = None):
         """ Build the dataframe to perform the fit for the focal plan
 
         Parameters
@@ -263,7 +274,8 @@ class Starflat():
         
         df = pandas.concat(client.gather(client.compute(df_list)))
         if store is True:
-            dir_path = '/pbs/home/e/erobert/libraries/ztfflat'
+            if dir_path is None:
+                dir_path = '/pbs/home/e/erobert/libraries/ztfflat'
             df.to_parquet(os.path.join(dir_path, f'df_matched_{year}_{filter}.parquet'))
 
         return df
