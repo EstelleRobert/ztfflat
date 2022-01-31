@@ -2,7 +2,7 @@
 import numpy as np
 import pandas
 from .io import *
-from . import starflat_nicolas_table as nr_sf
+from . import starflat_nicolas_zp as nr_sf
 from scipy.interpolate import RectBivariateSpline
 
 from ztfquery import fields
@@ -33,7 +33,7 @@ def from_dataframe_to_recarray(dataframe, year = 2019, filter_ = 'zg', month = 3
         npy recarray
         """
         mapping = {v:int(v.split('_')[1]) for v in dataframe.index.get_level_values(0).unique()}
-        data = dataframe.rename(index=mapping, level=0)
+        dataframe = dataframe.rename(index=mapping, level=0)
         if keys is None:
             dataframe = dataframe[["Source","qid", "ccdid", 'rcid',
                                    "x", "y", "u", "v", "ra","dec",
@@ -45,7 +45,7 @@ def from_dataframe_to_recarray(dataframe, year = 2019, filter_ = 'zg', month = 3
                                    'bpmag', 'imag_ps1','e_bpmag','e_imag_ps1',
                                    'zmag_ps1', 'e_zmag_ps1', "isolated", "colormag"]].reset_index().rename({"level_0":"img_id"}, axis=1)
         else:
-            dataframe = dataframe[keys]
+            dataframe = dataframe[keys].reset_index().rename({"level_0":"img_id"}, axis=1)
             
         dataframe_npy = dataframe.to_records(column_dtypes={'qid':np.int, 'isolated': np.int})
 
@@ -136,21 +136,31 @@ class StarFlatFitter():
                     "f_10_f", "psfcat", "psfcat_e", "isolated", "colormag", 'Source', 'img_id',
                     f'{flux}_corr','dzp_corr']
 
+        data_path_fit = get_path_fitresult(self.npyfile, self.superpix, extension = 'npy', flux_estimator = flux_estimator)
         if store_result:
-                data = df_data[keys].reset_index().rename({"level_0":"img_id"}, axis=1) #faire en sorte d'utiliser une seule fonction de tranformation dataframe -> recarray
-                data_path_fit = get_path_fitresult(self.npyfile, self.superpix, extension = 'npy', flux_estimator = flux_estimator)
-                data_path_parquet = get_path_fitresult(self.npyfile,  self.superpix, extension = 'parquet', flux_estimator = flux_estimator)
-                np.save(data_path_fit, data.to_records(index=False))
-                data.to_parquet(data_path_parquet)
+            data = df_data[keys].reset_index().rename({"level_0":"img_id"}, axis=1) #faire en sorte d'utiliser une seule fonction de tranformation dataframe -> recarray
+            data_path_fit = get_path_fitresult(self.npyfile, self.superpix, extension = 'npy', flux_estimator = flux_estimator)
+            data_path_parquet = get_path_fitresult(self.npyfile,  self.superpix, extension = 'parquet', flux_estimator = flux_estimator)
+            np.save(data_path_fit, data.to_records(index=False))
+            data.to_parquet(data_path_parquet)
 
-        return data_path_fit
+        self._corr_cat_path = data_path_fit
+
+        return data
 
     def plot_starflat(self, npyfile=None, starflat_boucle = False, ccd=None, subtract_gains = False, vmin = -0.005, vmax = 0.005, hexbin = True):
         """ """
         if starflat_boucle == False:
             nr_sf.plot_model(self.dp, self.model, self.solver, ccd=ccd, subtract_gains=subtract_gains, vmin = vmin, vmax = vmax, hexbin = hexbin)
         else:
-            self.load(npyfile, psf_flux=False,  starflat = True, check_fits = False, superpix=self.superpix)
+            self.load(self._corr_cat_path, psf_flux=False,  starflat = True, check_fits = False, superpix=self.superpix)
             return nr_sf.plot_model(self.dp, self.model, self.solver, ccd=ccd, subtract_gains=subtract_gains, vmin = vmin, vmax = vmax, hexbin = hexbin)
             
         
+    @property
+    def corr_cat_path(self):
+        """ """
+        if hasattr(self,"_corr_cat_path"):
+            return self._corr_cat_path
+
+        return self.make_fits()
