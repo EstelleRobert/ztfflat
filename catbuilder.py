@@ -138,7 +138,7 @@ class Starflat():
             if None: linspace(1,15,20)
         """
         if radius is None:
-            radius = np.linscape(1,15,20)
+            radius = np.linscape(1,15,15)
             
         if rcids is None:
             rcids = np.arange(64)
@@ -222,7 +222,7 @@ class Starflat():
             return cats, file_out
         
 
-    def build_merged_catalog(self, as_npy = False,  year = 2019, filter_ = 'zg', month = 3, store = True, **kwargs):
+    def build_merged_catalog(self, as_npy = False, filter_ = None, year = None, month = None, store = True, **kwargs):
         """ Build the dataframe to perform the fit for the focal plan
 
         Parameters
@@ -250,6 +250,13 @@ class Starflat():
         -------
         usable dataframe (focal plan) for the fit
         """
+        if year is None:
+            year = self.year
+        if month is None:
+            month = self.month
+        if filter_ is None:
+            filter_ = self.filtername
+
         dfs = get_concat_df(filter_ = filter_, year = year, month = month)
         df_list = []
 
@@ -257,7 +264,7 @@ class Starflat():
             dataframe = dask.delayed(self.build_dataframe)(df = df, **kwargs)
             df_list.append(dataframe)
 
-        df_parquet = pandas.concat(dask.delayed(list)(df_list).compute())
+#        df_parquet = pandas.concat(dask.delayed(list)(df_list).compute())
 
         if store:
             parquet_path = get_parquet_path(filter_ = filter_, year = year, month = month)
@@ -266,7 +273,7 @@ class Starflat():
             df_parquet.to_parquet(parquet_path)
 
         if not as_npy:
-            return df_parquet
+            return df_list
 
         from .linearfitter import from_dataframe_to_recarray
         df_npy = from_dataframe_to_recarray(dataframe = df_parquet, year = year, filter_ = filter_,  month = month, store = store, **kwargs)
@@ -289,7 +296,7 @@ class Starflat():
 
         basic_keys = ['Source','x', 'y', 'u', 'v', 'x_ps1', 'y_ps1', 'x_psfcat', 'y_psfcat', 'u_ps1', 'v_ps1',
                 'ra', 'dec', 'ra_ps1', 'dec_ps1', 'ra_psfcat', 'dec_psfcat',
-                'f_10', 'f_10_e','f_10_f',
+                'f_7', 'f_7_e','f_7_f',
                 'gmag', 'g_mag', 'e_gmag', 'g_magErr', 'rpmag', 'e_rpmag', 'bpmag', 'e_bpmag', 'colormag',
                 'isolated']
 
@@ -320,7 +327,7 @@ class Starflat():
             keys = ['Source', 'ccdid', 'qid', 'rcid',
                     'x','y', 'u', 'v', 'x_ps1', 'y_ps1', 'u_ps1', 'v_ps1',
                     'ra', 'dec','ra_ps1', 'dec_ps1', 'x_psfcat', 'y_psfcat', 'ra_psfcat', 'dec_psfcat',
-                    'f_10', 'f_10_e', 'f_10_f', 'psfcat', 'psfcat_e',
+                    'f_7', 'f_7_e', 'f_7_f', 'psfcat', 'psfcat_e',
                     'gmag', 'g_mag','e_gmag', 'g_magErr',
                     'rpmag','rmag_ps1', 'e_rpmag', 'e_rmag_ps1',
                     'bpmag', 'imag_ps1','e_bpmag','e_imag_ps1',

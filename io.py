@@ -157,7 +157,7 @@ def get_fits_path(file_, ccdid = None, qid = None, flux_estimator = 'ap'):
     month = int(file_.split('_')[2][4:6])
     filter_ = file_.split('_')[3]
 
-    dir_path = os.path.join(DIRPATH_FITS, f'{year}_newscript', f'{month:02}')
+    dir_path = os.path.join(DIRPATH_FITS, f'{year}_ap_new_radius', f'{month:02}')
     if not os.path.isdir(dir_path):
                 os.makedirs(dir_path, exist_ok=True)
     dir_path_fits = os.path.join(dir_path, f'ztfin2p3_{year}{month:02}_000000_{filter_}_c{ccdid:02}_q{qid}_{flux_estimator}starflat.fits')

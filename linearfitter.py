@@ -1,8 +1,8 @@
-
+from astropy.io import fits
 import numpy as np
 import pandas
 from .io import *
-from . import starflat_nicolas_zp as nr_sf
+from . import starflat_nicolas_zp  as nr_sf
 from scipy.interpolate import RectBivariateSpline
 
 from ztfquery import fields
@@ -39,7 +39,7 @@ def from_dataframe_to_recarray(dataframe, year = 2019, filter_ = 'zg', month = 3
                                    "x", "y", "u", "v", "ra","dec",
                                    'x_ps1', 'y_ps1','u_ps1', 'v_ps1','ra_ps1', 'dec_ps1',
                                    'x_psfcat', 'y_psfcat', 'ra_psfcat', 'dec_psfcat',
-                                   "f_10", "f_10_e", "f_10_f", "psfcat", "psfcat_e",
+                                   "f_7", "f_7_e", "f_7_f", "psfcat", "psfcat_e",
                                    'gmag', 'g_mag','e_gmag', 'g_magErr',
                                    'rpmag','rmag_ps1', 'e_rpmag', 'e_rmag_ps1',
                                    'bpmag', 'imag_ps1','e_bpmag','e_imag_ps1',
@@ -61,16 +61,16 @@ def from_dataframe_to_recarray(dataframe, year = 2019, filter_ = 'zg', month = 3
 class StarFlatFitter():
 
     
-    def __init__(self, npyfile, load=True):
+    def __init__(self, npyfile, load=True, psf_flux=False):
         """ """
         self.npyfile = npyfile
         if load:
-            self.load(npyfile)
+            self.load(npyfile, psf_flux=psf_flux)
         
     @classmethod
-    def from_npyfile(cls, npyfile, load=True):
+    def from_npyfile(cls, npyfile, load=True, psf_flux=False):
         """ """
-        return cls(npyfile, load=load)
+        return cls(npyfile, load=load, psf_flux=psf_flux)
         # If rcids is None - build_from_filename
         #this.rcids = rcids
           
@@ -79,6 +79,7 @@ class StarFlatFitter():
         dp = nr_sf.load(npyfile, psf_flux = psf_flux, starflat = starflat, check_fits = check_fits)
         dp, m = nr_sf.pixellize(dp, nx = superpix, ny = superpix)
         model = nr_sf.starflat_model_zpexp(dp)
+#        model = nr_sf.starflat_model_zpexpspline(dp, fixed_cell = 71035)
         _,_,solver,x = nr_sf.fit(dp,model)
         nr_sf.pars_to_starflats(m, model.params, plot=False)
 
@@ -105,7 +106,7 @@ class StarFlatFitter():
             flux = 'psfcat'
             flux_estimator = 'psf'        
         else:
-            flux = 'f_10'
+            flux = 'f_7'
             flux_estimator = 'ap'
         
         array = np.load(self.npyfile, allow_pickle=True)
@@ -132,8 +133,8 @@ class StarFlatFitter():
         df_data[f'{flux}_corr'] = df_data[f'{flux}']*10**(+0.4*df_data['dzp_corr']) #put correction from fit into originate dataframe
 
         if keys is None:
-            keys = ["qid", "ccdid", "rcid","x", "y", "u", "v", "ra", "dec", "f_10", "f_10_e",
-                    "f_10_f", "psfcat", "psfcat_e", "isolated", "colormag", 'Source', 'img_id',
+            keys = ["qid", "ccdid", "rcid","x", "y", "u", "v", "ra", "dec", "f_7", "f_7_e",
+                    "f_7_f", "psfcat", "psfcat_e", "isolated", "colormag", 'Source', 'img_id',
                     f'{flux}_corr','dzp_corr']
 
         data_path_fit = get_path_fitresult(self.npyfile, self.superpix, extension = 'npy', flux_estimator = flux_estimator)
@@ -148,13 +149,22 @@ class StarFlatFitter():
 
         return data
 
-    def plot_starflat(self, npyfile=None, starflat_boucle = False, ccd=None, subtract_gains = False, vmin = -0.005, vmax = 0.005, hexbin = True):
+
+
+    def plot_starflat(self, npyfile=None, starflat_boucle = False, ccd=None, subtract_gains = False, vmin = -0.005, vmax = 0.005, hexbin = True, psf_flux = False):
         """ """
         if starflat_boucle == False:
-            nr_sf.plot_model(self.dp, self.model, self.solver, ccd=ccd, subtract_gains=subtract_gains, vmin = vmin, vmax = vmax, hexbin = hexbin)
-        else:
-            self.load(self._corr_cat_path, psf_flux=False,  starflat = True, check_fits = False, superpix=self.superpix)
             return nr_sf.plot_model(self.dp, self.model, self.solver, ccd=ccd, subtract_gains=subtract_gains, vmin = vmin, vmax = vmax, hexbin = hexbin)
+        else:
+            if npyfile:
+                self.load(npyfile, psf_flux=psf_flux,  starflat = True, check_fits = False, superpix=self.superpix)
+                return nr_sf.plot_model(self.dp, self.model, self.solver, ccd=ccd, subtract_gains=subtract_gains, 
+                                            vmin = vmin, vmax = vmax, hexbin = hexbin)
+            else:
+                
+                self.load(self.corr_cat_path, psf_flux=psf_flux,  starflat = True, check_fits = False, superpix=self.superpix)
+                return nr_sf.plot_model(self.dp, self.model, self.solver, ccd=ccd, subtract_gains=subtract_gains,
+                                        vmin = vmin, vmax = vmax, hexbin = hexbin)
             
         
     @property
